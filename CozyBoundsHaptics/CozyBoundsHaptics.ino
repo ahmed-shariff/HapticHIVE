@@ -13,13 +13,14 @@ double i = 0;
 double j = 0;
 double k = 10;
 int nextAnimationM0 = 0;
-int nextAnimationM1 = 0;
 int nextAnimationM2andM3 = 0;
+int nextAnimationM1andM2 = 0;
 double currentHeartRate = 0;
 double respiratoryRate = 0;
 
 bool isPurring = false;
 bool isGrowling = true;
+double intensityM1 = 0.0;
 double intensityM2 = 0.0;
 double intensityM3 = 0.2;
 bool isIncreasing = true; // Flag to track intensity increase or decrease
@@ -108,39 +109,39 @@ void loop()
   double progress = static_cast<double>(elapsedTime) / periodDuration;
   
   // Repeatedly generate a vibration on M2 and M3
-  if (isFree(M2) && isFree(M3)) {
-    switch (nextAnimationM2andM3) {
+  if (isFree(M1) && isFree(M2)) {
+    switch (nextAnimationM1andM2) {
       case 0:
         // Generate a vibration on M2 and M3 with randomized intensity changes
-        vibrate(M1, 300, intensityM3, 0.2, 70);
+        vibrate(M1, 300, intensityM1, 0.2, 70);
         vibrate(M2, 160, intensityM2, 0.2, 70);
         
-        nextAnimationM2andM3 = 1; // Set the next animation to run once M2 and M3 are free again
+        nextAnimationM1andM2 = 1; // Set the next animation to run once M2 and M3 are free again
         break;
       case 1:
         if (isIncreasing) {
           // Increase the intensity periodically
           double increaseFactor = sin(progress * 2 * PI); // Adjust the periodic pattern here
+          intensityM1 += increaseFactor * 0.05; // Adjust the increase factor here
           intensityM2 += increaseFactor * 0.05; // Adjust the increase factor here
-          intensityM3 += increaseFactor * 0.05; // Adjust the increase factor here
         } else {
           // Decrease the intensity periodically
           double decreaseFactor = cos(progress * 2 * PI); // Adjust the periodic pattern here
+          intensityM1 -= decreaseFactor * 0.05; // Adjust the decrease factor here
           intensityM2 -= decreaseFactor * 0.05; // Adjust the decrease factor here
-          intensityM3 -= decreaseFactor * 0.05; // Adjust the decrease factor here
         }
         
         // Cap the intensity values
-        if (intensityM2 > 0.25) {
+        if (intensityM1 > 0.25) {
           intensityM2 = 0.25;
         }
-        if (intensityM2 < 0.0) {
+        if (intensityM1 < 0.0) {
           intensityM2 = 0.0;
         }
-        if (intensityM3 > 0.5) {
+        if (intensityM2 > 0.5) {
           intensityM3 = 0.5;
         }
-        if (intensityM3 < 0.0) {
+        if (intensityM2 < 0.0) {
           intensityM3 = 0.0;
         }
         
@@ -150,7 +151,7 @@ void loop()
           isIncreasing = !isIncreasing; // Toggle between increase and decrease
         }
         
-        nextAnimationM2andM3 = 0; // Restart the sequence
+        nextAnimationM1andM2 = 0; // Restart the sequence
         break;
       default:
         break;
@@ -159,21 +160,21 @@ void loop()
   }
 
   // repeatedly generate a single pulse with intensity proportional to heart rate using M0
-  if (isFree(M1)) { // if M3 is free
+  if (isFree(M0)) { // if M0 is free
     if (currentHeartRate != 0) {
-      switch (nextAnimationM1) { // check the next animation to run
+      switch (nextAnimationM0) { // check the next animation to run
         case 0: // animation n°1
-          if(isGrowling){
-            singlePulse(M1 * 1.5, .70, 8); // ask M1 to generate a single pulse at 50% intensity for 8ms
-          }
-          else {
-            singlePulse(M1, .70, 8); // ask M1 to generate a single pulse at 50% intensity for 8ms
-          }
-          nextAnimationM1 = 1; // set the next animation to run once M1 is free again
+          singlePulse(M0, .70, 8); // ask M0 to generate a single pulse at 50% intensity for 8ms
+          nextAnimationM0 = 1; // set the next animation to run once M1 is free again
           break;
         case 1: // animation n°2
-          pause(M1, 60000 / currentHeartRate); // ask M1 to pause itself for a time proportional to the heart rate
-          nextAnimationM1 = 0; // set the next animation to run once M1 is free again
+          if (isGrowling){
+            pause(M0, 60000 / (currentHeartRate + 30));
+          }
+          else {
+            pause(M0, 60000 / currentHeartRate); // ask M0 to pause itself for a time proportional to the heart rate
+          }
+          nextAnimationM0 = 0; // set the next animation to run once M0 is free again
           break;
         default:
           break;
