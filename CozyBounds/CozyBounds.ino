@@ -9,6 +9,23 @@ extern TacHammer* M2;
 extern TacHammer* M3;
 
 // User variables
+double i = 0;
+double j = 0;
+double k = 10;
+int nextAnimationM0 = 0;
+int nextAnimationM2andM3 = 0;
+int nextAnimationM1andM2 = 0;
+double currentHeartRate = 0;
+double respiratoryRate = 0;
+
+bool isPurring = false;
+bool isGrowling = false;
+double intensityM1 = 0.0;
+double intensityM2 = 0.0;
+double intensityM3 = 0.2;
+bool isIncreasing = true; // Flag to track intensity increase or decrease
+
+// User variables
 unsigned long stateStartTime = 0;
 // state = 0 - resting
 // state = 1 - high stress
@@ -31,6 +48,12 @@ double stepsLastCount = 0;
  * The function gives the time in ms at which the measurement was taken (*time*) and the heart rate in bpm (*bpm*).
  **/
 void heartRateCallback(unsigned int time, double bpm) {
+    Serial.print("[");
+    Serial.print(time);
+    Serial.print("] heart rate:");
+    Serial.println(bpm);
+    currentHeartRate = bpm; // save heartrate reading
+    respiratoryRate = currentHeartRate/4; // rought estimation of the respiratory rate
 }
 
 /**
@@ -105,21 +128,137 @@ void buddyRestStateUpdate() {
 void buddyStressedStateInit() {
     currentState = 1;
     stateStartTime = millis();
+    isGrowling = true;
+    isPurring = false;
     Serial.println("Stressed stated started");
 }
 
 void buddyStressedStateUpdate() {
-    
+    // Code for growling animation
+    unsigned long startTime = 0; // Start time of the current period
+    unsigned long periodDuration = 5000; // Duration of the periodic pattern in milliseconds
+    unsigned long currentTime = millis();
+    unsigned long elapsedTime = currentTime - startTime;
+    double progress = static_cast<double>(elapsedTime) / periodDuration;
+    intensityM1 = 0.5;
+    intensityM2 = 0.5;
+
+    // Repeatedly generate a vibration on M2 and M3
+    if (isFree(M1) && isFree(M2)) {
+        switch (nextAnimationM1andM2) {
+        case 0:
+            // Generate a vibration on M2 and M3 with randomized intensity changes
+            vibrate(M1, 300, intensityM1, 0.5, 70);
+            vibrate(M2, 160, intensityM2, 0.5, 70);
+
+            nextAnimationM1andM2 = 1; // Set the next animation to run once M2 and M3 are free again
+            break;
+        case 1:
+            if (isIncreasing) {
+                // Increase the intensity periodically
+                double increaseFactor = sin(progress * 2 * PI); // Adjust the periodic pattern here
+                intensityM1 += increaseFactor * 0.05; // Adjust the increase factor here
+                intensityM2 += increaseFactor * 0.05; // Adjust the increase factor here
+            } else {
+                // Decrease the intensity periodically
+                double decreaseFactor = cos(progress * 2 * PI); // Adjust the periodic pattern here
+                intensityM1 -= decreaseFactor * 0.05; // Adjust the decrease factor here
+                intensityM2 -= decreaseFactor * 0.05; // Adjust the decrease factor here
+            }
+        
+            // Cap the intensity values
+            if (intensityM1 > 0.9) {
+                intensityM1 = 0.9;
+            }
+            if (intensityM1 < 0.0) {
+                intensityM1 = 0.0;
+            }
+            if (intensityM2 > 0.9) {
+                intensityM2 = 0.9;
+            }
+            if (intensityM2 < 0.0) {
+                intensityM2 = 0.0;
+            }
+        
+            // Check if the current period has ended
+            if (elapsedTime >= periodDuration) {
+                startTime = currentTime; // Start a new period
+                isIncreasing = !isIncreasing; // Toggle between increase and decrease
+            }
+        
+            nextAnimationM1andM2 = 0; // Restart the sequence
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 void buddyRelaxedStateInit() {
     currentState = 2;
     stateStartTime = millis();
+    isGrowling = false;
+    isPurring = true;
     Serial.println("Relaxed state started");
 }
 
 void buddyRelaxStateUpdate() {
+    unsigned long startTime = 0; // Start time of the current period
+    unsigned long periodDuration = 5000; // Duration of the periodic pattern in milliseconds
+    unsigned long currentTime = millis();
+    unsigned long elapsedTime = currentTime - startTime;
+    double progress = static_cast<double>(elapsedTime) / periodDuration;
     
+    // Repeatedly generate a vibration on M2 and M3
+    if (isFree(M2) && isFree(M3)) {
+        switch (nextAnimationM2andM3) {
+        case 0:
+            // Generate a vibration on M2 and M3 with randomized intensity changes
+            vibrate(M2, 110, intensityM2, 0.2, 70);
+            vibrate(M3, 25, intensityM3, 0.2, 70);
+          
+            nextAnimationM2andM3 = 1; // Set the next animation to run once M2 and M3 are free again
+            break;
+        case 1:
+
+            if (isIncreasing) {
+                // Increase the intensity periodically
+                double increaseFactor = sin(progress * 2 * PI); // Adjust the periodic pattern here
+                intensityM2 += increaseFactor * 0.05; // Adjust the increase factor here
+                intensityM3 += increaseFactor * 0.05; // Adjust the increase factor here
+            } else {
+                // Decrease the intensity periodically
+                double decreaseFactor = cos(progress * 2 * PI); // Adjust the periodic pattern here
+                intensityM2 -= decreaseFactor * 0.05; // Adjust the decrease factor here
+                intensityM3 -= decreaseFactor * 0.05; // Adjust the decrease factor here
+            }
+          
+            // Cap the intensity values
+            if (intensityM2 > 0.15) {
+                intensityM2 = 0.15;
+            }
+            if (intensityM2 < 0.0) {
+                intensityM2 = 0.0;
+            }
+            if (intensityM3 > 0.3) {
+                intensityM3 = 0.3;
+            }
+            if (intensityM3 < 0.0) {
+                intensityM3 = 0.0;
+            }
+          
+            // Check if the current period has ended
+            if (elapsedTime >= periodDuration) {
+                startTime = currentTime; // Start a new period
+                isIncreasing = !isIncreasing; // Toggle between increase and decrease
+            }
+          
+            nextAnimationM2andM3 = 0; // Restart the sequence
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 // ================================================================================
@@ -185,6 +324,30 @@ void loop() {
     }
     default:
         break;
+    }
+
+    
+    // repeatedly generate a single pulse with intensity proportional to heart rate using M0
+    if (isFree(M0)) { // if M0 is free
+        if (currentHeartRate != 0) {
+            switch (nextAnimationM0) { // check the next animation to run
+            case 0: // animation n°1
+                singlePulse(M0, .80, 8); // ask M0 to generate a single pulse at 50% intensity for 8ms
+                nextAnimationM0 = 1; // set the next animation to run once M1 is free again
+                break;
+            case 1: // animation n°2
+                if (isGrowling){
+                    pause(M0, 60000 / (currentHeartRate + 50));
+                }
+                else {
+                    pause(M0, 60000 / currentHeartRate); // ask M0 to pause itself for a time proportional to the heart rate
+                }
+                nextAnimationM0 = 0; // set the next animation to run once M0 is free again
+                break;
+            default:
+                break;
+            }
+        }
     }
 
     isHelping = false;
