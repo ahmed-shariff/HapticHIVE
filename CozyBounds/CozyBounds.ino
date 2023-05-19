@@ -19,8 +19,12 @@ bool needHelp = true; // TODO:Need to configure randomly at some point
 // TODO: Will revisit second stage later
 /* bool needHelpInStepTwo = true; // TODO:Need to configure randomly at some point */
 
-float STEP_COUNT_THRESHOLD = 20; // The threshold above which, it is considered to be helping
-int STATE_WINDOW_SECONDS = 30; // The time window of a state
+float STEP_COUNT_THRESHOLD = 0.5 / 1000; // The threshold above which, it is considered to be helping
+int STATE_WINDOW_SECONDS = 15; // The time window of a state
+
+int stepsLastTime = 0;
+double stepsLastCount = 0;
+
 
 /**
  * Called whenever a new heart rate reading is received from the smartwatch. 
@@ -34,6 +38,14 @@ void heartRateCallback(unsigned int time, double bpm) {
  * The function gives the time in ms at which the measurement was taken (*time*) and the acceleration force along the X-axis (*xAccel*), Y-axis (*yAccel*), and the Z-axis (*zAccel*).
  **/
 void accelerometerCallback(unsigned int time, double xAccel, double yAccel, double zAccel) {
+//  Serial.print(time);
+//  Serial.print(" ==== ");
+//  Serial.print(xAccel);
+//  Serial.print(" ==== ");
+//  Serial.print(yAccel);
+//  Serial.print(" ==== ");
+//  Serial.print(zAccel);
+//  Serial.println(" ==== ");
 }
 
 /**
@@ -55,7 +67,26 @@ void lightCallback(unsigned int time, double lux) {
  * The function gives the time in ms at which the measurement was taken (*time*) and the number of steps since the smartwatch is started (*steps*).
  **/
 void stepCounterCallback(unsigned int time, double steps) {
-    isHelping = steps/time > STEP_COUNT_THRESHOLD;
+    if (stepsLastCount == 0) {
+        stepsLastCount = steps;
+        stepsLastTime = time;
+        return;
+    }
+    isHelping = (steps - stepsLastCount)/ (time - stepsLastTime) > STEP_COUNT_THRESHOLD;
+    Serial.print(steps);
+    Serial.print("  ");
+    Serial.print(time);
+    Serial.print("  ");
+    Serial.print(stepsLastCount);
+    Serial.print("  ");
+    Serial.print(stepsLastTime);
+    Serial.print("  ");
+    Serial.print(1000 * ((steps - stepsLastCount)/ (time - stepsLastTime)));
+    Serial.print("  ");
+    Serial.println(isHelping);
+
+    stepsLastCount = steps;
+    stepsLastTime = time;
 }
 
 // ================================================================================
@@ -74,7 +105,7 @@ void buddyRestStateUpdate() {
 void buddyStressedStateInit() {
     currentState = 1;
     stateStartTime = millis();
-    Serial.print("Stressed stated started");
+    Serial.println("Stressed stated started");
 }
 
 void buddyStressedStateUpdate() {
@@ -84,7 +115,7 @@ void buddyStressedStateUpdate() {
 void buddyRelaxedStateInit() {
     currentState = 2;
     stateStartTime = millis();
-    Serial.print("Relaxed state started");
+    Serial.println("Relaxed state started");
 }
 
 void buddyRelaxStateUpdate() {
@@ -105,6 +136,8 @@ void setup() {
 // ================================================================================
 // active code goes here
 void loop() { 
+    requestSmartWatch(SMARTWATCH_REQUEST_DELAY); // requests new physiological readings from the smartwatch every SMARTWATCH_REQUEST_DELAY milliseconds
+
     if (millis() - stateStartTime > STATE_WINDOW_SECONDS * 1000) {
         switch (currentState) {
         case 0: {
